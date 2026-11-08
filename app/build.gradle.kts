@@ -16,8 +16,11 @@ android {
     applicationId = "com.aistudio.sharedirect.wfpzqk"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    // The version number grows automatically with every GitHub build,
+    // so Android accepts each build as an update over the previous one.
+    val runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+    versionCode = runNumber
+    versionName = "1.0.$runNumber"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
