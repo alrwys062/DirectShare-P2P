@@ -1,0 +1,6 @@
+{
+  "name": "شارك مباشر",
+  "description": "تطبيق نقل الملفات محلياً بسرعة عالية عبر Wi-Fi Direct ومقابس TCP بدون إنترنت باللغة العربية بالكامل.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
