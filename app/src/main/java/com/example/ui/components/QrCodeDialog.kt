@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.example.localization.AppStrings
 import com.example.transfer.QrCodeHelper
 import com.example.ui.theme.NeonCyan
 
@@ -46,6 +47,7 @@ fun QrCodeDialog(
     ipAddress: String,
     port: Int,
     deviceName: String,
+    strings: AppStrings,
     onDismiss: () -> Unit
 ) {
     val qrContent = "sharedirect://$ipAddress:$port?name=$deviceName"
@@ -80,13 +82,13 @@ fun QrCodeDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.QrCode,
-                            contentDescription = "رمز QR",
+                            contentDescription = strings.btnQrCode,
                             tint = NeonCyan,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "الاتصال عبر رمز QR",
+                            text = strings.qrDialogTitle,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -95,7 +97,7 @@ fun QrCodeDialog(
                         onClick = onDismiss,
                         modifier = Modifier.testTag("close_qr_dialog_button")
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                        Icon(Icons.Default.Close, contentDescription = strings.cancel)
                     }
                 }
 
@@ -113,12 +115,12 @@ fun QrCodeDialog(
                     if (qrBitmap != null) {
                         Image(
                             bitmap = qrBitmap,
-                            contentDescription = "رمز QR للاتصال المباشر",
+                            contentDescription = strings.qrDialogTitle,
                             modifier = Modifier.size(196.dp)
                         )
                     } else {
                         Text(
-                            text = "جارٍ إنشاء رمز QR...",
+                            text = "...",
                             color = Color.Black,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -165,7 +167,7 @@ fun QrCodeDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "امسح هذا الرمز باستخدام جهاز المُرسِل أو أدخل عنوان IP الموضح أعلاه للاتصال الفوري.",
+                    text = strings.qrDialogDesc,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
@@ -183,7 +185,7 @@ fun QrCodeDialog(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("تم", fontWeight = FontWeight.Bold)
+                    Text(strings.qrDone, fontWeight = FontWeight.Bold)
                 }
             }
         }

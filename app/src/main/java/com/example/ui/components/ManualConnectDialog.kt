@@ -37,12 +37,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.example.localization.AppStrings
 import com.example.ui.theme.NeonCyan
 
 @Composable
 fun ManualConnectDialog(
     initialIp: String,
     initialPort: Int,
+    strings: AppStrings,
     onDismiss: () -> Unit,
     onConnectAndSend: (ip: String, port: Int) -> Unit
 ) {
@@ -75,13 +77,13 @@ fun ManualConnectDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Lan,
-                            contentDescription = "اتصال عبر IP",
+                            contentDescription = strings.btnDirectIp,
                             tint = NeonCyan,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "الاتصال المباشر عبر IP",
+                            text = strings.directIpTitle,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -90,14 +92,14 @@ fun ManualConnectDialog(
                         onClick = onDismiss,
                         modifier = Modifier.testTag("close_manual_dialog_button")
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                        Icon(Icons.Default.Close, contentDescription = strings.cancel)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "اتصل مباشرة بجهاز المستلم عبر Wi-Fi Direct أو نقطة اتصال الهاتف (Hotspot) أو الشبكة المحلية بدون إنترنت.",
+                    text = strings.directIpDesc,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -106,7 +108,7 @@ fun ManualConnectDialog(
 
                 // Quick presets
                 Text(
-                    text = "اختصارات سريعة للاتصال:",
+                    text = strings.quickPresets,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -122,7 +124,7 @@ fun ManualConnectDialog(
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
-                            "مجموعة Wi-Fi Direct\n192.168.49.1",
+                            strings.presetWifiDirect,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -133,7 +135,7 @@ fun ManualConnectDialog(
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
-                            "تجربة محلية للجهاز\n127.0.0.1",
+                            strings.presetLocalhost,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -144,8 +146,8 @@ fun ManualConnectDialog(
                 OutlinedTextField(
                     value = ipText,
                     onValueChange = { ipText = it },
-                    label = { Text("عنوان IP للمستلم (IPv4)") },
-                    placeholder = { Text("مثال: 192.168.49.1") },
+                    label = { Text(strings.receiverIpLabel) },
+                    placeholder = { Text(strings.receiverIpPlaceholder) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -159,7 +161,7 @@ fun ManualConnectDialog(
                 OutlinedTextField(
                     value = portText,
                     onValueChange = { portText = it },
-                    label = { Text("منفذ الاتصال (Port)") },
+                    label = { Text(strings.portLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -179,7 +181,7 @@ fun ManualConnectDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("إلغاء")
+                        Text(strings.cancel)
                     }
 
                     Button(
@@ -203,7 +205,7 @@ fun ManualConnectDialog(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("إرسال", fontWeight = FontWeight.Bold)
+                        Text(strings.sendAction, fontWeight = FontWeight.Bold)
                     }
                 }
             }

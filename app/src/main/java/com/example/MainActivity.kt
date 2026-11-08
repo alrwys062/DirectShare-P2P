@@ -24,14 +24,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.Brightness7
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -63,6 +68,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.localization.AppLanguage
+import com.example.localization.AppThemeMode
 import com.example.ui.components.ManualConnectDialog
 import com.example.ui.components.QrCodeDialog
 import com.example.ui.screens.HistoryScreen
@@ -81,9 +88,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MyApplicationTheme {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    MainAppScreen()
+            val viewModel: TransferViewModel = viewModel()
+            val themeMode by viewModel.themeMode.collectAsState()
+            val language by viewModel.appLanguage.collectAsState()
+
+            MyApplicationTheme(themeMode = themeMode) {
+                val layoutDirection = if (language.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+                CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+                    MainAppScreen(viewModel = viewModel)
                 }
             }
         }
@@ -93,7 +105,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppScreen(
-    viewModel: TransferViewModel = viewModel()
+    viewModel: TransferViewModel
 ) {
     val context = LocalContext.current
     val currentTab by viewModel.currentTab.collectAsState()
@@ -102,6 +114,10 @@ fun MainAppScreen(
     val showManualConnectDialog by viewModel.showManualConnectDialog.collectAsState()
     val snackBarMessage by viewModel.snackBarMessage.collectAsState()
     val targetPort by viewModel.targetPort.collectAsState()
+
+    val strings by viewModel.strings.collectAsState()
+    val language by viewModel.appLanguage.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -163,7 +179,7 @@ fun MainAppScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "ShareDirect",
+                                text = strings.appName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
@@ -171,14 +187,61 @@ fun MainAppScreen(
                         }
                         Text(
                             text = if (connectionState.isConnected) {
-                                if (connectionState.isGroupOwner) "مستضيف مجموعة P2P" else "متصل بجهاز"
+                                if (connectionState.isGroupOwner) strings.hostingP2p else strings.connectedToPeer
                             } else {
-                                if (connectionState.localIpAddress != null) "جاهز للنقل (${connectionState.localIpAddress})"
+                                if (connectionState.localIpAddress != null) "${strings.readyToTransfer} (${connectionState.localIpAddress})"
                                 else connectionState.thisDeviceName
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
+                    }
+                },
+                navigationIcon = {
+                    // Theme Switcher button (System / Light / Dark)
+                    IconButton(
+                        onClick = { viewModel.cycleThemeMode() },
+                        modifier = Modifier.testTag("theme_toggle_button")
+                    ) {
+                        Icon(
+                            imageVector = when (themeMode) {
+                                AppThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                                AppThemeMode.LIGHT -> Icons.Default.Brightness7
+                                AppThemeMode.DARK -> Icons.Default.Brightness4
+                            },
+                            contentDescription = strings.switchTheme,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                actions = {
+                    // Language Switcher button (Arabic / English)
+                    Surface(
+                        onClick = { viewModel.toggleLanguage() },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .testTag("language_toggle_button")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = strings.switchLanguage,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (language == AppLanguage.ARABIC) "EN" else "عربي",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -197,10 +260,10 @@ fun MainAppScreen(
                     icon = {
                         Icon(
                             imageVector = Icons.Default.Upload,
-                            contentDescription = "إرسال"
+                            contentDescription = strings.tabSend
                         )
                     },
-                    label = { Text("إرسال") },
+                    label = { Text(strings.tabSend) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = NeonCyan,
                         selectedTextColor = NeonCyan,
@@ -215,10 +278,10 @@ fun MainAppScreen(
                     icon = {
                         Icon(
                             imageVector = Icons.Default.Download,
-                            contentDescription = "استقبال"
+                            contentDescription = strings.tabReceive
                         )
                     },
-                    label = { Text("استقبال") },
+                    label = { Text(strings.tabReceive) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = NeonCyan,
                         selectedTextColor = NeonCyan,
@@ -233,10 +296,10 @@ fun MainAppScreen(
                     icon = {
                         Icon(
                             imageVector = Icons.Default.History,
-                            contentDescription = "السجل"
+                            contentDescription = strings.tabHistory
                         )
                     },
-                    label = { Text("السجل") },
+                    label = { Text(strings.tabHistory) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = NeonCyan,
                         selectedTextColor = NeonCyan,
@@ -274,12 +337,12 @@ fun MainAppScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "مطلوب إذن الأجهزة القريبة / الموقع",
+                                text = strings.permissionTitle,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "يرجى منح الإذن للبحث عن أجهزة Wi-Fi Direct ونقل الملفات بدون إنترنت.",
+                                text = strings.permissionDesc,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -289,7 +352,7 @@ fun MainAppScreen(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text("منح الإذن", fontSize = 12.sp)
+                            Text(strings.grantPermission, fontSize = 12.sp)
                         }
                     }
                 }
@@ -313,6 +376,7 @@ fun MainAppScreen(
             ipAddress = ip,
             port = targetPort,
             deviceName = connectionState.thisDeviceName,
+            strings = strings,
             onDismiss = { viewModel.setShowQrDialog(false) }
         )
     }
@@ -322,6 +386,7 @@ fun MainAppScreen(
         ManualConnectDialog(
             initialIp = connectionState.groupOwnerAddress ?: "192.168.49.1",
             initialPort = targetPort,
+            strings = strings,
             onDismiss = { viewModel.setShowManualConnectDialog(false) },
             onConnectAndSend = { ip, port ->
                 viewModel.setTargetPort(port)

@@ -10,6 +10,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.example.localization.AppThemeMode
 
 private val DarkColorScheme = darkColorScheme(
     primary = NeonCyan,
@@ -32,34 +33,41 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = ElectricBlue,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFDBEAFE),
-    onPrimaryContainer = Color(0xFF1E3A8A),
+    primaryContainer = Color(0xFFE0F2FE),
+    onPrimaryContainer = ElectricBlueDark,
     secondary = TechPurple,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFEDE9FE),
     onSecondaryContainer = Color(0xFF5B21B6),
-    background = Slate50,
+    background = Slate100,
     onBackground = Slate900,
     surface = Color.White,
     onSurface = Slate900,
-    surfaceVariant = Slate100,
+    surfaceVariant = Color(0xFFE8EEF5),
     onSurfaceVariant = Slate800,
-    outline = Slate400
+    outline = Slate300
 )
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Keep consistent cyber/high-tech branding
+    themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val systemDark = isSystemInDarkTheme()
+    val isDark = when (themeMode) {
+        AppThemeMode.SYSTEM -> systemDark
+        AppThemeMode.DARK -> true
+        AppThemeMode.LIGHT -> false
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> DarkColorScheme // Use dark theme by default for high-tech beam aesthetic
+        isDark -> DarkColorScheme
+        else -> LightColorScheme
     }
 
     MaterialTheme(

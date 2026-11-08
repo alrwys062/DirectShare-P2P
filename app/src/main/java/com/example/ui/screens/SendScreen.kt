@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -62,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.localization.AppLanguage
 import com.example.model.FileCategory
 import com.example.model.PeerDevice
 import com.example.model.SelectedFile
@@ -76,18 +79,41 @@ fun SendScreen(
     viewModel: TransferViewModel,
     modifier: Modifier = Modifier
 ) {
+    val strings by viewModel.strings.collectAsState()
+    val language by viewModel.appLanguage.collectAsState()
+
     val selectedFiles by viewModel.selectedFiles.collectAsState()
     val peers by viewModel.peers.collectAsState()
     val isDiscovering by viewModel.isDiscovering.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val activeTransfer by viewModel.activeTransfer.collectAsState()
 
-    // File pickers for various categories
-    val filePickerLauncher = rememberLauncherForActivityResult(
+    // File pickers with fallback
+    val openDocsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             viewModel.addSelectedUris(uris)
+        }
+    }
+
+    val getContentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            viewModel.addSelectedUris(uris)
+        }
+    }
+
+    fun launchSafePicker(types: Array<String>) {
+        try {
+            openDocsLauncher.launch(types)
+        } catch (e: ActivityNotFoundException) {
+            try {
+                getContentLauncher.launch(types.firstOrNull() ?: "*/*")
+            } catch (e2: Exception) {
+                Log.e("SendScreen", "Failed to launch picker: ${e2.message}")
+            }
         }
     }
 
@@ -103,6 +129,8 @@ fun SendScreen(
             item {
                 TransferProgressCard(
                     transfer = transfer,
+                    strings = strings,
+                    language = language,
                     onCancel = { viewModel.cancelActiveTransfer() },
                     onDismiss = { viewModel.clearActiveTransfer() }
                 )
@@ -113,7 +141,7 @@ fun SendScreen(
         item {
             Column {
                 Text(
-                    text = "اختر الملفات للإرسال",
+                    text = strings.pickFilesTitle,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -124,44 +152,44 @@ fun SendScreen(
                 ) {
                     item {
                         PickerCategoryChip(
-                            label = "جميع الملفات",
+                            label = strings.catAll,
                             icon = Icons.Default.Folder,
-                            onClick = { filePickerLauncher.launch(arrayOf("*/*")) }
+                            onClick = { launchSafePicker(arrayOf("*/*")) }
                         )
                     }
                     item {
                         PickerCategoryChip(
-                            label = "الصور",
+                            label = strings.catPhotos,
                             icon = Icons.Default.Image,
-                            onClick = { filePickerLauncher.launch(arrayOf("image/*")) }
+                            onClick = { launchSafePicker(arrayOf("image/*")) }
                         )
                     }
                     item {
                         PickerCategoryChip(
-                            label = "الفيديوهات",
+                            label = strings.catVideos,
                             icon = Icons.Default.Movie,
-                            onClick = { filePickerLauncher.launch(arrayOf("video/*")) }
+                            onClick = { launchSafePicker(arrayOf("video/*")) }
                         )
                     }
                     item {
                         PickerCategoryChip(
-                            label = "الصوتيات",
+                            label = strings.catAudio,
                             icon = Icons.Default.Audiotrack,
-                            onClick = { filePickerLauncher.launch(arrayOf("audio/*")) }
+                            onClick = { launchSafePicker(arrayOf("audio/*")) }
                         )
                     }
                     item {
                         PickerCategoryChip(
-                            label = "تطبيقات APK",
+                            label = strings.catApks,
                             icon = Icons.Default.Android,
-                            onClick = { filePickerLauncher.launch(arrayOf("application/vnd.android.package-archive", "*/*")) }
+                            onClick = { launchSafePicker(arrayOf("application/vnd.android.package-archive", "*/*")) }
                         )
                     }
                     item {
                         PickerCategoryChip(
-                            label = "المستندات",
+                            label = strings.catDocs,
                             icon = Icons.Default.Description,
-                            onClick = { filePickerLauncher.launch(arrayOf("application/pdf", "text/*", "*/*")) }
+                            onClick = { launchSafePicker(arrayOf("application/pdf", "text/*", "*/*")) }
                         )
                     }
                 }
@@ -177,7 +205,7 @@ fun SendScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "الملفات المحددة",
+                        text = strings.selectedFiles,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -188,7 +216,7 @@ fun SendScreen(
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                         ) {
                             Text(
-                                text = "${selectedFiles.size} (${formatBytes(selectedFiles.sumOf { it.size })})",
+                                text = "${selectedFiles.size} (${formatBytes(selectedFiles.sumOf { it.size }, language)})",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -207,7 +235,7 @@ fun SendScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "مسح الكل",
+                            contentDescription = strings.clearAll,
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -240,13 +268,13 @@ fun SendScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "لم يتم تحديد أي ملفات بعد",
+                            text = strings.noFilesSelected,
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "اضغط على أي تصنيف بالأعلى لاختيار صور أو فيديوهات أو مستندات لإرسالها فوراً.",
+                            text = strings.tapToPickHint,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -257,6 +285,7 @@ fun SendScreen(
             items(selectedFiles, key = { it.id }) { file ->
                 SelectedFileItem(
                     file = file,
+                    language = language,
                     onRemove = { viewModel.removeSelectedFile(file.id) }
                 )
             }
@@ -279,7 +308,7 @@ fun SendScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "الأجهزة القريبة (Wi-Fi Direct P2P)",
+                            text = strings.nearbyDevicesTitle,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -300,7 +329,7 @@ fun SendScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
-                                contentDescription = "البحث عن أجهزة",
+                                contentDescription = strings.scanningForPeers,
                                 tint = NeonCyan
                             )
                         }
@@ -330,12 +359,12 @@ fun SendScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = if (isDiscovering) "جارٍ البحث عن أجهزة Wi-Fi قريبة..." else "لم يتم العثور على أجهزة Wi-Fi Direct بعد",
+                                    text = if (isDiscovering) strings.scanningForPeers else strings.noPeersFound,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "تأكد من فتح تبويب 'استقبال' في جهاز المستلم، أو اتصل مباشرة عبر رمز QR أو IP المباشر أدناه.",
+                                    text = strings.ensureReceiverActive,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
@@ -347,6 +376,8 @@ fun SendScreen(
                         peers.forEach { peer ->
                             PeerDeviceCard(
                                 peer = peer,
+                                language = language,
+                                connectLabel = strings.connect,
                                 onConnect = { viewModel.connectToPeer(peer.deviceAddress) }
                             )
                         }
@@ -374,7 +405,7 @@ fun SendScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("رمز QR")
+                    Text(strings.btnQrCode)
                 }
 
                 OutlinedButton(
@@ -390,7 +421,7 @@ fun SendScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("اتصال عبر IP")
+                    Text(strings.btnDirectIp)
                 }
             }
         }
@@ -417,7 +448,7 @@ fun SendScreen(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = if (selectedFiles.isEmpty()) "اختر الملفات للإرسال" else "إرسال ${selectedFiles.size} ملف فوراً",
+                    text = if (selectedFiles.isEmpty()) strings.btnPickFilesFirst else strings.btnSendFiles(selectedFiles.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -462,6 +493,7 @@ fun PickerCategoryChip(
 @Composable
 fun SelectedFileItem(
     file: SelectedFile,
+    language: AppLanguage,
     onRemove: () -> Unit
 ) {
     Card(
@@ -524,13 +556,13 @@ fun SelectedFileItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 Row {
                     Text(
-                        text = file.formattedSize,
+                        text = file.getFormattedSize(language),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "• ${file.category.displayName}",
+                        text = "• ${file.category.getDisplayName(language)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = NeonCyan
                     )
@@ -545,7 +577,7 @@ fun SelectedFileItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.Clear,
-                    contentDescription = "حذف",
+                    contentDescription = "Remove",
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier.size(18.dp)
                 )
@@ -557,6 +589,8 @@ fun SelectedFileItem(
 @Composable
 fun PeerDeviceCard(
     peer: PeerDevice,
+    language: AppLanguage,
+    connectLabel: String,
     onConnect: () -> Unit
 ) {
     Card(
@@ -603,7 +637,7 @@ fun PeerDeviceCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${peer.deviceAddress} • ${peer.statusText}",
+                        text = "${peer.deviceAddress} • ${peer.getStatusText(language)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -619,7 +653,7 @@ fun PeerDeviceCard(
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 modifier = Modifier.testTag("connect_peer_${peer.deviceAddress}")
             ) {
-                Text("اتصال", style = MaterialTheme.typography.labelMedium)
+                Text(connectLabel, style = MaterialTheme.typography.labelMedium)
             }
         }
     }

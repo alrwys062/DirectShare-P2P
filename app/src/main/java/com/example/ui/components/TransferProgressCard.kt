@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.localization.AppLanguage
+import com.example.localization.AppStrings
 import com.example.model.TransferDirection
 import com.example.model.TransferItem
 import com.example.model.TransferStatus
@@ -49,6 +51,8 @@ import com.example.ui.theme.TechRed
 @Composable
 fun TransferProgressCard(
     transfer: TransferItem,
+    strings: AppStrings,
+    language: AppLanguage,
     onCancel: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -91,7 +95,7 @@ fun TransferProgressCard(
                     ) {
                         Icon(
                             imageVector = if (isSending) Icons.Default.NorthEast else Icons.Default.SouthWest,
-                            contentDescription = if (isSending) "إرسال" else "استقبال",
+                            contentDescription = if (isSending) strings.tabSend else strings.tabReceive,
                             tint = iconBg,
                             modifier = Modifier.size(20.dp)
                         )
@@ -99,7 +103,7 @@ fun TransferProgressCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isSending) "جارٍ إرسال الملف" else "جارٍ استلام الملف",
+                            text = if (isSending) strings.sendingFileTitle else strings.receivingFileTitle,
                             style = MaterialTheme.typography.labelSmall,
                             color = iconBg,
                             fontWeight = FontWeight.Bold,
@@ -107,12 +111,12 @@ fun TransferProgressCard(
                         )
                         Text(
                             text = when (transfer.status) {
-                                TransferStatus.CONNECTING -> "جارٍ إنشاء الاتصال..."
-                                TransferStatus.TRANSFERRING -> "جارٍ النقل بأقصى سرعة..."
-                                TransferStatus.COMPLETED -> "اكتمل النقل بنجاح!"
-                                TransferStatus.FAILED -> "فشلت عملية النقل"
-                                TransferStatus.CANCELLED -> "تم إلغاء النقل"
-                                else -> "جارٍ التجهيز..."
+                                TransferStatus.CONNECTING -> strings.connectingStatus
+                                TransferStatus.TRANSFERRING -> strings.transferringStatus
+                                TransferStatus.COMPLETED -> strings.completedStatus
+                                TransferStatus.FAILED -> strings.failedStatus
+                                TransferStatus.CANCELLED -> strings.cancelledStatus
+                                else -> strings.preparingStatus
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -129,7 +133,7 @@ fun TransferProgressCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "إلغاء النقل",
+                            contentDescription = strings.cancelTransfer,
                             tint = TechRed
                         )
                     }
@@ -142,7 +146,7 @@ fun TransferProgressCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "إغلاق",
+                            contentDescription = strings.dismiss,
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
@@ -188,7 +192,10 @@ fun TransferProgressCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${transfer.formattedTransferred} من ${transfer.formattedSize}",
+                    text = strings.progressRatio(
+                        transfer.getFormattedTransferred(language),
+                        transfer.getFormattedSize(language)
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                 )
@@ -197,13 +204,13 @@ fun TransferProgressCard(
                     if (transfer.status == TransferStatus.TRANSFERRING) {
                         Icon(
                             imageVector = Icons.Default.Speed,
-                            contentDescription = "السرعة",
+                            contentDescription = strings.speedLabel,
                             tint = NeonCyan,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = transfer.formattedSpeed,
+                            text = transfer.getFormattedSpeed(language),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = NeonCyan
@@ -244,7 +251,7 @@ fun TransferProgressCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Error,
-                        contentDescription = "خطأ",
+                        contentDescription = "Error",
                         tint = TechRed,
                         modifier = Modifier.size(16.dp)
                     )

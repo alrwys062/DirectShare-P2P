@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.localization.AppLanguage
 import com.example.model.TransferDirection
 import com.example.model.TransferItem
 import com.example.model.TransferStatus
@@ -67,6 +68,9 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val strings by viewModel.strings.collectAsState()
+    val language by viewModel.appLanguage.collectAsState()
+
     val history by viewModel.transferHistory.collectAsState()
     var selectedFilter by remember { mutableStateOf("ALL") }
 
@@ -98,16 +102,16 @@ fun HistoryScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 SummaryCard(
-                    title = "إجمالي المُرسَل",
-                    value = formatBytes(totalSentBytes),
+                    title = strings.totalSent,
+                    value = formatBytes(totalSentBytes, language),
                     icon = Icons.Default.ArrowUpward,
                     iconColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
 
                 SummaryCard(
-                    title = "إجمالي المُستلَم",
-                    value = formatBytes(totalReceivedBytes),
+                    title = strings.totalReceived,
+                    value = formatBytes(totalReceivedBytes, language),
                     icon = Icons.Default.ArrowDownward,
                     iconColor = TechGreen,
                     modifier = Modifier.weight(1f)
@@ -124,7 +128,7 @@ fun HistoryScreen(
                 FilterChip(
                     selected = selectedFilter == "ALL",
                     onClick = { selectedFilter = "ALL" },
-                    label = { Text("الكل (${history.size})") },
+                    label = { Text(strings.filterAll(history.size)) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                         selectedLabelColor = MaterialTheme.colorScheme.primary
@@ -133,7 +137,7 @@ fun HistoryScreen(
                 FilterChip(
                     selected = selectedFilter == "SENT",
                     onClick = { selectedFilter = "SENT" },
-                    label = { Text("المرسلة") },
+                    label = { Text(strings.filterSent) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                         selectedLabelColor = MaterialTheme.colorScheme.primary
@@ -142,7 +146,7 @@ fun HistoryScreen(
                 FilterChip(
                     selected = selectedFilter == "RECEIVED",
                     onClick = { selectedFilter = "RECEIVED" },
-                    label = { Text("المستلمة") },
+                    label = { Text(strings.filterReceived) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = TechGreen.copy(alpha = 0.2f),
                         selectedLabelColor = TechGreen
@@ -174,13 +178,13 @@ fun HistoryScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "لا يوجد سجل نقل حتى الآن",
+                            text = strings.noHistoryTitle,
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "سيتم تسجيل جميع عمليات إرسال واستلام الملفات هنا تلقائياً.",
+                            text = strings.noHistoryDesc,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -191,6 +195,11 @@ fun HistoryScreen(
             items(filteredList, key = { it.id }) { item ->
                 HistoryItemCard(
                     item = item,
+                    language = language,
+                    sentTag = strings.sentTag,
+                    receivedTag = strings.receivedTag,
+                    openFileText = strings.openFile,
+                    shareFileText = strings.shareFile,
                     onOpen = {
                         item.localFilePath?.let { path ->
                             viewModel.openFile(context, path, item.mimeType)
@@ -262,12 +271,18 @@ fun SummaryCard(
 @Composable
 fun HistoryItemCard(
     item: TransferItem,
+    language: AppLanguage,
+    sentTag: String,
+    receivedTag: String,
+    openFileText: String,
+    shareFileText: String,
     onOpen: () -> Unit,
     onShare: () -> Unit
 ) {
     val isSending = item.direction == TransferDirection.SENDING
     val isSuccess = item.status == TransferStatus.COMPLETED
-    val timeFormat = remember { SimpleDateFormat("dd MMM، HH:mm", Locale("ar")) }
+    val locale = if (language == AppLanguage.ARABIC) Locale("ar") else Locale.ENGLISH
+    val timeFormat = remember(language) { SimpleDateFormat("dd MMM, HH:mm", locale) }
 
     Card(
         modifier = Modifier
@@ -321,7 +336,7 @@ fun HistoryItemCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = item.formattedSize,
+                        text = item.getFormattedSize(language),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -333,7 +348,7 @@ fun HistoryItemCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isSending) "تم الإرسال" else "تم الاستلام",
+                        text = if (isSending) sentTag else receivedTag,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (isSending) MaterialTheme.colorScheme.primary else TechGreen
@@ -348,7 +363,7 @@ fun HistoryItemCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.OpenInNew,
-                        contentDescription = "فتح الملف",
+                        contentDescription = openFileText,
                         tint = NeonCyan,
                         modifier = Modifier.size(18.dp)
                     )
@@ -359,7 +374,7 @@ fun HistoryItemCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
-                        contentDescription = "مشاركة الملف",
+                        contentDescription = shareFileText,
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)
                     )

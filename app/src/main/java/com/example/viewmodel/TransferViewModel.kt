@@ -9,6 +9,11 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.localization.AppLanguage
+import com.example.localization.AppStrings
+import com.example.localization.AppThemeMode
+import com.example.localization.ArabicStrings
+import com.example.localization.EnglishStrings
 import com.example.model.FileCategory
 import com.example.model.P2PConnectionState
 import com.example.model.PeerDevice
@@ -17,22 +22,36 @@ import com.example.model.TransferItem
 import com.example.p2p.WifiP2pHelper
 import com.example.transfer.SocketFileTransferEngine
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 
-enum class AppTab(val title: String) {
-    SEND("إرسال"),
-    RECEIVE("استقبال"),
-    HISTORY("السجل")
+enum class AppTab {
+    SEND,
+    RECEIVE,
+    HISTORY
 }
 
 class TransferViewModel(application: Application) : AndroidViewModel(application) {
 
     private val p2pHelper = WifiP2pHelper(application)
     private val transferEngine = SocketFileTransferEngine(application)
+
+    // Language & Theme State
+    private val _appLanguage = MutableStateFlow(AppLanguage.ARABIC)
+    val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+
+    val strings: StateFlow<AppStrings> = _appLanguage.map { lang ->
+        if (lang == AppLanguage.ARABIC) ArabicStrings else EnglishStrings
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, ArabicStrings)
+
+    private val _themeMode = MutableStateFlow(AppThemeMode.SYSTEM)
+    val themeMode: StateFlow<AppThemeMode> = _themeMode.asStateFlow()
 
     val connectionState: StateFlow<P2PConnectionState> = p2pHelper.connectionState
     val peers: StateFlow<List<PeerDevice>> = p2pHelper.peers
@@ -64,13 +83,37 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     val snackBarMessage: StateFlow<String?> = _snackBarMessage.asStateFlow()
 
     init {
-        // Automatically start server when in receive tab or when connected
+        // Automatically sync target IP when connected as P2P client
         viewModelScope.launch {
             connectionState.collect { state ->
                 if (state.isConnected && state.groupOwnerAddress != null) {
                     _targetIp.value = state.groupOwnerAddress
                 }
             }
+        }
+    }
+
+    fun setLanguage(language: AppLanguage) {
+        _appLanguage.value = language
+    }
+
+    fun toggleLanguage() {
+        _appLanguage.value = if (_appLanguage.value == AppLanguage.ARABIC) {
+            AppLanguage.ENGLISH
+        } else {
+            AppLanguage.ARABIC
+        }
+    }
+
+    fun setThemeMode(mode: AppThemeMode) {
+        _themeMode.value = mode
+    }
+
+    fun cycleThemeMode() {
+        _themeMode.value = when (_themeMode.value) {
+            AppThemeMode.SYSTEM -> AppThemeMode.LIGHT
+            AppThemeMode.LIGHT -> AppThemeMode.DARK
+            AppThemeMode.DARK -> AppThemeMode.SYSTEM
         }
     }
 
@@ -90,9 +133,10 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun discoverPeers() {
+        val s = strings.value
         p2pHelper.discoverPeers(
-            onSuccess = { showMessage("جارٍ البحث عن الأجهزة القريبة...") },
-            onFailure = { code -> showMessage("تعذر بدء البحث عن أجهزة Wi-Fi المباشرة (رمز: $code)") }
+            onSuccess = { showMessage(s.msgSearchingPeers) },
+            onFailure = { code -> showMessage(s.msgPeerDiscoveryFailed(code)) }
         )
     }
 
@@ -101,31 +145,34 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun connectToPeer(deviceAddress: String) {
+        val s = strings.value
         p2pHelper.connectToPeer(
             deviceAddress = deviceAddress,
-            onSuccess = { showMessage("جارٍ الاتصال بالجهاز...") },
-            onFailure = { showMessage("فشل بدء الاتصال بالجهاز") }
+            onSuccess = { showMessage(s.msgConnectingToPeer) },
+            onFailure = { showMessage(s.msgConnectionFailed) }
         )
     }
 
     fun createP2pGroup() {
+        val s = strings.value
         p2pHelper.createGroup(
-            onSuccess = { showMessage("تم إنشاء مجموعة Wi-Fi Direct بنجاح!") },
-            onFailure = { showMessage("تعذر إنشاء مجموعة Wi-Fi Direct") }
+            onSuccess = { showMessage(s.msgGroupCreated) },
+            onFailure = { showMessage(s.msgGroupFailed) }
         )
     }
 
     fun removeP2pGroup() {
+        val s = strings.value
         p2pHelper.removeGroup(
-            onSuccess = { showMessage("تمت مغادرة مجموعة Wi-Fi Direct") },
-            onFailure = { showMessage("تعذر مغادرة المجموعة") }
+            onSuccess = { showMessage(s.msgGroupLeft) },
+            onFailure = { showMessage(s.msgGroupFailed) }
         )
     }
 
     fun startReceivingServer(port: Int = SocketFileTransferEngine.DEFAULT_PORT) {
         viewModelScope.launch {
             transferEngine.startReceivingServer(port) { receivedItem ->
-                showMessage("تم استلام الملف: ${receivedItem.fileName}")
+                showMessage(strings.value.msgFileReceived(receivedItem.fileName))
             }
         }
     }
@@ -164,7 +211,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
 
         for (uri in uris) {
             try {
-                var fileName = "ملف_${System.currentTimeMillis()}"
+                var fileName = "file_${System.currentTimeMillis()}"
                 var fileSize = 0L
                 val mimeType = resolver.getType(uri) ?: "*/*"
 
@@ -189,13 +236,13 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                     )
                 )
             } catch (e: Exception) {
-                Log.e("TransferViewModel", "Error reading metadata: ${e.message}")
+                Log.e("TransferViewModel", "Error reading file metadata: ${e.message}")
             }
         }
 
         _selectedFiles.value = _selectedFiles.value + newFiles
         if (newFiles.isNotEmpty()) {
-            showMessage("تمت إضافة ${newFiles.size} ملف بنجاح")
+            showMessage(strings.value.msgFilesAdded(newFiles.size))
         }
     }
 
@@ -208,9 +255,10 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun sendFiles(overrideIp: String? = null) {
+        val s = strings.value
         val files = _selectedFiles.value
         if (files.isEmpty()) {
-            showMessage("يرجى اختيار ملف واحد على الأقل للإرسال")
+            showMessage(s.msgPickAtLeastOneFile)
             return
         }
 
@@ -219,13 +267,13 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
             ?: connectionState.value.groupOwnerAddress
 
         if (ip.isNullOrBlank()) {
-            showMessage("لم يتم العثور على عنوان IP للمستلم. اتصل بجهاز أو أدخل الـ IP.")
+            showMessage(s.msgNoReceiverIp)
             _showManualConnectDialog.value = true
             return
         }
 
         viewModelScope.launch {
-            showMessage("جارٍ إرسال ${files.size} ملف إلى $ip...")
+            showMessage(s.msgSendingFilesTo(files.size, ip))
             transferEngine.sendFiles(
                 serverIp = ip,
                 port = _targetPort.value,
@@ -237,7 +285,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
 
     fun cancelActiveTransfer() {
         transferEngine.cancelActiveTransfer()
-        showMessage("تم إلغاء عملية النقل")
+        showMessage(strings.value.msgTransferCancelled)
     }
 
     fun clearActiveTransfer() {
@@ -245,10 +293,11 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun openFile(context: Context, localPath: String, mimeType: String) {
+        val s = strings.value
         try {
             val file = File(localPath)
             if (!file.exists()) {
-                showMessage("الملف غير موجود في ذاكرة التخزين")
+                showMessage(s.msgFileNotFound)
                 return
             }
 
@@ -263,18 +312,19 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(Intent.createChooser(intent, "فتح الملف باستخدام"))
+            context.startActivity(Intent.createChooser(intent, s.msgChooserOpen))
         } catch (e: Exception) {
             Log.e("TransferViewModel", "Cannot open file: ${e.message}")
-            showMessage("لا يوجد تطبيق مثبت قادر على فتح هذا النوع من الملفات")
+            showMessage(s.msgNoAppToOpen)
         }
     }
 
     fun shareFile(context: Context, localPath: String, mimeType: String) {
+        val s = strings.value
         try {
             val file = File(localPath)
             if (!file.exists()) {
-                showMessage("الملف غير موجود في ذاكرة التخزين")
+                showMessage(s.msgFileNotFound)
                 return
             }
 
@@ -290,10 +340,10 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(Intent.createChooser(intent, "مشاركة الملف"))
+            context.startActivity(Intent.createChooser(intent, s.msgChooserShare))
         } catch (e: Exception) {
             Log.e("TransferViewModel", "Cannot share file: ${e.message}")
-            showMessage("تعذرت مشاركة الملف")
+            showMessage(s.msgShareError)
         }
     }
 

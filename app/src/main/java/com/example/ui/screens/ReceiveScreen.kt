@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.localization.AppLanguage
 import com.example.model.TransferDirection
 import com.example.model.TransferItem
 import com.example.ui.components.TransferProgressCard
@@ -71,6 +72,9 @@ fun ReceiveScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val strings by viewModel.strings.collectAsState()
+    val language by viewModel.appLanguage.collectAsState()
+
     val connectionState by viewModel.connectionState.collectAsState()
     val isServerListening by viewModel.isServerListening.collectAsState()
     val activeTransfer by viewModel.activeTransfer.collectAsState()
@@ -103,6 +107,8 @@ fun ReceiveScreen(
             item {
                 TransferProgressCard(
                     transfer = transfer,
+                    strings = strings,
+                    language = language,
                     onCancel = { viewModel.cancelActiveTransfer() },
                     onDismiss = { viewModel.clearActiveTransfer() }
                 )
@@ -156,7 +162,7 @@ fun ReceiveScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.WifiTethering,
-                                contentDescription = "رادار الاستقبال",
+                                contentDescription = strings.waitingForSender,
                                 tint = if (isServerListening) NeonCyan else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                 modifier = Modifier.size(36.dp)
                             )
@@ -166,7 +172,7 @@ fun ReceiveScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = if (isServerListening) "في انتظار المُرسِل (جاهز للاستقبال)..." else "خادم الاستقبال متوقف",
+                        text = if (isServerListening) strings.waitingForSender else strings.receiverStopped,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -175,7 +181,7 @@ fun ReceiveScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "يمكن لجهاز المُرسِل الاتصال عبر Wi-Fi Direct أو مباشرة عبر عنوان IP ورمز QR بدون إنترنت.",
+                        text = strings.receiveInstructions,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
@@ -205,7 +211,7 @@ fun ReceiveScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "عنوان IP: $displayIp  |  المنفذ: $targetPort",
+                                text = strings.ipAndPortFormat(displayIp, targetPort),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.SemiBold,
@@ -237,7 +243,7 @@ fun ReceiveScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("عرض رمز QR", fontWeight = FontWeight.Bold)
+                            Text(strings.btnShowQr, fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(
@@ -253,7 +259,7 @@ fun ReceiveScreen(
                                 .testTag("toggle_server_button"),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(if (isServerListening) "إعادة تشغيل الخادم" else "بدء الاستقبال")
+                            Text(if (isServerListening) strings.btnRestartServer else strings.btnStartServer)
                         }
                     }
                 }
@@ -280,15 +286,15 @@ fun ReceiveScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "مجموعة Wi-Fi Direct المباشرة",
+                            text = strings.p2pGroupTitle,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = if (connectionState.isConnected) {
-                                if (connectionState.isGroupOwner) "مستضيف الجلسة (مالك المجموعة)"
-                                else "متصل بمجموعة P2P"
-                            } else "لا توجد مجموعة نشطة حالياً",
+                                if (connectionState.isGroupOwner) strings.groupOwnerHosting
+                                else strings.connectedToGroup
+                            } else strings.noActiveGroup,
                             style = MaterialTheme.typography.bodySmall,
                             color = if (connectionState.isConnected) TechGreen else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -306,7 +312,7 @@ fun ReceiveScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("مغادرة")
+                            Text(strings.btnLeaveGroup)
                         }
                     } else {
                         Button(
@@ -323,7 +329,7 @@ fun ReceiveScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("إنشاء مجموعة")
+                            Text(strings.btnCreateGroup)
                         }
                     }
                 }
@@ -338,7 +344,7 @@ fun ReceiveScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "الملفات المستلمة حديثاً (${receivedItems.size})",
+                    text = strings.recentReceivedTitle(receivedItems.size),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -366,7 +372,7 @@ fun ReceiveScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "لا توجد ملفات مستلمة بعد",
+                            text = strings.noReceivedFiles,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -377,6 +383,10 @@ fun ReceiveScreen(
             items(receivedItems, key = { it.id }) { item ->
                 ReceivedFileCard(
                     item = item,
+                    language = language,
+                    receivedSuccessText = strings.receivedSuccess,
+                    openFileText = strings.openFile,
+                    shareFileText = strings.shareFile,
                     onOpen = {
                         item.localFilePath?.let { path ->
                             viewModel.openFile(context, path, item.mimeType)
@@ -396,6 +406,10 @@ fun ReceiveScreen(
 @Composable
 fun ReceivedFileCard(
     item: TransferItem,
+    language: AppLanguage,
+    receivedSuccessText: String,
+    openFileText: String,
+    shareFileText: String,
     onOpen: () -> Unit,
     onShare: () -> Unit
 ) {
@@ -442,13 +456,13 @@ fun ReceivedFileCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Row {
                     Text(
-                        text = item.formattedSize,
+                        text = item.getFormattedSize(language),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "• تم الاستلام بنجاح",
+                        text = receivedSuccessText,
                         style = MaterialTheme.typography.bodySmall,
                         color = TechGreen
                     )
@@ -463,7 +477,7 @@ fun ReceivedFileCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.OpenInNew,
-                    contentDescription = "فتح الملف",
+                    contentDescription = openFileText,
                     tint = NeonCyan,
                     modifier = Modifier.size(20.dp)
                 )
@@ -477,7 +491,7 @@ fun ReceivedFileCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.Share,
-                    contentDescription = "مشاركة الملف",
+                    contentDescription = shareFileText,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     modifier = Modifier.size(20.dp)
                 )
