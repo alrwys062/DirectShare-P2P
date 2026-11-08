@@ -37,6 +37,17 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
+      - name: Restore fixed signing keystore (so updates install over the old version)
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "$DEBUG_KEYSTORE_BASE64" | base64 -d > ./debug.keystore
+            echo "Restored fixed keystore from secret."
+          else
+            echo "WARNING: secret DEBUG_KEYSTORE_BASE64 is not set. A random key will be used and updates will NOT install over the previous version."
+          fi
+
       - name: Create temporary debug keystore
         run: |
           if [ -f "./debug.keystore" ]; then
